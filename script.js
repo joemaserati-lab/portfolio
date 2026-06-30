@@ -9,8 +9,10 @@ const CONFIG = {
   maxWheelDelta: 80,
 
   // Swipe mobile: come il wheel, qualunque direzione manda avanti la sequenza.
-  touchSensitivity: 0.0022,
-  maxTouchDelta: 90,
+  touchSensitivity: 0.0055,
+  minTouchImpulse: 0.018,
+  maxTouchDelta: 140,
+  maxTouchPendingImpulse: 0.58,
 
   // Impedisce l'accumulo eccessivo di input durante scroll ripetuti.
   maxPendingImpulse: 0.32,
@@ -323,9 +325,11 @@ function advanceFromTouchMove(event) {
 
   if (!Number.isFinite(normalizedDelta) || normalizedDelta === 0) return;
 
+  const touchImpulse = Math.max(normalizedDelta * CONFIG.touchSensitivity, CONFIG.minTouchImpulse);
+
   pendingImpulse = Math.min(
-    pendingImpulse + normalizedDelta * CONFIG.touchSensitivity,
-    CONFIG.maxPendingImpulse
+    pendingImpulse + touchImpulse,
+    CONFIG.maxTouchPendingImpulse
   );
 }
 
