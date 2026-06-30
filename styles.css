@@ -1,0 +1,203 @@
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap");
+
+:root {
+  --background: #0000ff;
+  --foreground: #fff;
+  --label-color: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+
+#runnerCanvas {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: auto;
+  background: transparent;
+}
+
+.stage.is-compact #runnerCanvas {
+  z-index: 5;
+}
+
+.hero-type {
+  position: fixed;
+  font-family: "Instrument Serif", Georgia, serif;
+  font-weight: 400;
+  line-height: 0.72;
+  letter-spacing: -0.075em;
+  color: var(--label-color);
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+
+.stage.is-loaded .hero-type {
+  opacity: 1;
+}
+
+.stage.is-compact .hero-type {
+  opacity: 0;
+}
+
+.hero-type-top {
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 100vw;
+  height: clamp(150px, 22vw, 390px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-22px);
+  transition: opacity 900ms ease, transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stage.is-loaded .hero-type-top {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.stage.is-compact .hero-type-top {
+  opacity: 0;
+  transform: translateY(-22px);
+}
+
+.hero-type-top text {
+  fill: var(--label-color);
+  font-family: "Instrument Serif", Georgia, serif;
+  font-size: 210px;
+  font-weight: 400;
+  letter-spacing: -0.045em;
+}
+
+.hero-type-bottom {
+  bottom: 0;
+  z-index: 3;
+  font-size: clamp(64px, 7vw, 140px);
+  letter-spacing: -0.065em;
+}
+
+.hero-type-bottom-left {
+  left: 0;
+  transform: translateX(-28px);
+}
+
+.hero-type-bottom-right {
+  right: 0;
+  transform: translateX(28px);
+}
+
+.stage.is-loaded .hero-type-bottom-left,
+.stage.is-loaded .hero-type-bottom-right {
+  transform: translateX(0);
+  transition: opacity 900ms ease 120ms, transform 900ms cubic-bezier(0.22, 1, 0.36, 1) 120ms;
+}
+
+.loading {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.loading.is-hidden {
+  opacity: 0;
+}
+
+.final-content {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: clamp(170px, 24vh, 260px) clamp(20px, 5vw, 80px) clamp(72px, 12vh, 130px);
+  color: var(--label-color);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(calc(72px * (1 - var(--compact-progress, 0))));
+  transition: opacity 700ms ease, transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.content-ready .final-content {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.final-content-inner {
+  max-width: min(980px, 92vw);
+}
+
+.final-kicker {
+  margin: 0 0 18px;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.final-content h1 {
+  margin: 0;
+  font-family: "Instrument Serif", Georgia, serif;
+  font-size: clamp(64px, 11vw, 180px);
+  font-weight: 400;
+  line-height: 0.88;
+  letter-spacing: -0.075em;
+}
+
+.final-content p:last-child {
+  max-width: 600px;
+  margin: 24px auto 0;
+  font-size: clamp(16px, 1.5vw, 22px);
+  line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .hero-type-top {
+    height: clamp(96px, 22vw, 170px);
+  }
+
+  .hero-type-bottom {
+    font-size: clamp(34px, 9vw, 64px);
+  }
+
+  .final-content {
+    padding-top: clamp(140px, 24vh, 220px);
+  }
+}
