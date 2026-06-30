@@ -8,6 +8,10 @@ const CONFIG = {
   // Taglia i picchi dei mouse wheel tradizionali e dei trackpad molto sensibili.
   maxWheelDelta: 80,
 
+  // Swipe mobile: come il wheel, qualunque direzione manda avanti la sequenza.
+  touchSensitivity: 0.0022,
+  maxTouchDelta: 90,
+
   // Impedisce l'accumulo eccessivo di input durante scroll ripetuti.
   maxPendingImpulse: 0.32,
 
@@ -54,6 +58,9 @@ let contentReady = false;
 let renderedSignature = '';
 let ready = false;
 let resizePending = true;
+let touchActive = false;
+let lastTouchX = 0;
+let lastTouchY = 0;
 
 function preloadFrames() {
   return Promise.all(
@@ -290,12 +297,52 @@ function advanceFromKeyboard(event) {
   );
 }
 
+function advanceFromTouchStart(event) {
+  const touch = event.touches[0];
+  if (!touch) return;
+
+  touchActive = true;
+  lastTouchX = touch.clientX;
+  lastTouchY = touch.clientY;
+}
+
+function advanceFromTouchMove(event) {
+  if (!touchActive) return;
+
+  const touch = event.touches[0];
+  if (!touch) return;
+
+  event.preventDefault();
+
+  const deltaX = Math.abs(touch.clientX - lastTouchX);
+  const deltaY = Math.abs(touch.clientY - lastTouchY);
+  const normalizedDelta = clamp(deltaX + deltaY, 0, CONFIG.maxTouchDelta);
+
+  lastTouchX = touch.clientX;
+  lastTouchY = touch.clientY;
+
+  if (!Number.isFinite(normalizedDelta) || normalizedDelta === 0) return;
+
+  pendingImpulse = Math.min(
+    pendingImpulse + normalizedDelta * CONFIG.touchSensitivity,
+    CONFIG.maxPendingImpulse
+  );
+}
+
+function advanceFromTouchEnd() {
+  touchActive = false;
+}
+
 window.addEventListener('resize', () => {
   resizePending = true;
 });
 
 window.addEventListener('wheel', advanceFromWheel, { passive: false });
 window.addEventListener('keydown', advanceFromKeyboard, { passive: false });
+window.addEventListener('touchstart', advanceFromTouchStart, { passive: false });
+window.addEventListener('touchmove', advanceFromTouchMove, { passive: false });
+window.addEventListener('touchend', advanceFromTouchEnd, { passive: true });
+window.addEventListener('touchcancel', advanceFromTouchEnd, { passive: true });
 
 preloadFrames()
   .then(() => {
