@@ -6,7 +6,7 @@ const CONFIG = {
   wheelSensitivity: 0.0022,
 
   // Taglia i picchi dei mouse wheel tradizionali e dei trackpad molto sensibili.
-  maxWheelDelta: 80,
+  maxWheelDelta: 64,
 
   // Swipe mobile: come il wheel, qualunque direzione manda avanti la sequenza.
   touchSensitivity: 0.009,
@@ -27,7 +27,7 @@ const CONFIG = {
   frameInterpolation: false,
 
   // Limite reale di velocità: anche scrollando forte, l'animazione resta controllata.
-  maxVelocity: 0.18,
+  maxVelocity: 0.125,
 
   // Dimensionamento della sequenza nel viewport.
   fit: 'cover', // 'cover' o 'contain'
@@ -40,6 +40,14 @@ const CONFIG = {
   compactIconTop: 28,
   compactTransitionSpeed: 0.018,
   compactVisibleBounds: { x: 768, y: 104, w: 484, h: 932 },
+
+  heroReturnLength: 1,
+  sectionLength: 2.5,
+  contentKeyboardStep: 0.25,
+  contentSmoothing: 0.07,
+  panelFadeInEnd: 0.18,
+  panelFadeOutStart: 0.78,
+  panelOffset: 34,
 };
 
 const canvas = document.getElementById('runnerCanvas');
@@ -47,6 +55,7 @@ const ctx = canvas.getContext('2d', { alpha: true });
 const loading = document.getElementById('loading');
 const stage = document.querySelector('.stage');
 const finalContent = document.getElementById('finalContent');
+const contentPanels = Array.from(document.querySelectorAll('.content-panel'));
 
 const frames = [];
 let loadedFrames = 0;
@@ -63,6 +72,8 @@ let resizePending = true;
 let touchActive = false;
 let lastTouchX = 0;
 let lastTouchY = 0;
+let contentScroll = 0;
+let targetContentScroll = 0;
 
 function getViewportSize() {
   const visualViewport = window.visualViewport;
@@ -196,6 +207,77 @@ function drawImageFull(img, alpha = 1) {
   ctx.globalAlpha = 1;
 }
 
+function getContentScrollDistance() {
+  return Math.max(getViewportSize().height, 1);
+}
+
+function getPanelVisibility(localProgress) {
+  if (localProgress < 0 || localProgress > 1) return 0;
+
+  if (localProgress < CONFIG.panelFadeInEnd) {
+    return easeInOut(localProgress / CONFIG.panelFadeInEnd);
+  }
+
+  if (localProgress <= CONFIG.panelFadeOutStart) return 1;
+
+  return 1 - easeInOut((localProgress - CONFIG.panelFadeOutStart) / (1 - CONFIG.panelFadeOutStart));
+}
+
+function updateContentPanels(force = false) {
+  if (!contentReady && !force) return;
+
+  contentScroll += (targetContentScroll - contentScroll) * CONFIG.contentSmoothing;
+
+  if (Math.abs(targetContentScroll - contentScroll) < 0.001) {
+    contentScroll = targetContentScroll;
+  }
+
+  const portfolioVisibility = clamp(contentScroll / CONFIG.heroReturnLength + 1, 0, 1);
+  let readablePanelIndex = -1;
+
+  if (finalContent) {
+    finalContent.style.opacity = portfolioVisibility.toFixed(3);
+    finalContent.style.pointerEvents = portfolioVisibility > 0.55 ? 'auto' : 'none';
+  }
+
+  document.body.classList.toggle('hero-returned', contentScroll < -0.45);
+
+  const panelStates = contentPanels.map((panel, index) => {
+    const sectionStart = index * CONFIG.sectionLength;
+    const localProgress = (contentScroll - sectionStart) / CONFIG.sectionLength;
+    const visibility = getPanelVisibility(localProgress) * portfolioVisibility;
+
+    if (visibility > 0.55 && readablePanelIndex === -1) {
+      readablePanelIndex = index;
+    }
+
+    return { panel, index, localProgress, visibility };
+  });
+
+  panelStates.forEach(({ panel, index, localProgress, visibility }) => {
+    const direction = localProgress < CONFIG.panelFadeInEnd ? 1 : -1;
+    const offset = direction * CONFIG.panelOffset * (1 - visibility);
+    const isReadable = index === readablePanelIndex && visibility > 0.55;
+
+    panel.style.opacity = visibility.toFixed(3);
+    panel.style.transform = `translateY(${offset.toFixed(2)}px)`;
+    panel.style.pointerEvents = isReadable ? 'auto' : 'none';
+    panel.style.visibility = visibility > 0.01 ? 'visible' : 'hidden';
+    panel.style.zIndex = visibility > 0.01 ? '1' : '0';
+    panel.setAttribute('aria-hidden', isReadable ? 'false' : 'true');
+  });
+}
+
+function advanceContentPosition(amount) {
+  if (!contentReady || contentPanels.length === 0) return;
+
+  targetContentScroll = clamp(
+    targetContentScroll + amount,
+    -CONFIG.heroReturnLength,
+    (contentPanels.length - 1) * CONFIG.sectionLength + CONFIG.sectionLength * CONFIG.panelFadeOutStart
+  );
+}
+
 function updatePageBackground() {
   document.documentElement.style.backgroundColor = CONFIG.backgroundColor;
   document.documentElement.style.setProperty('--label-color', '#ffffff');
@@ -221,8 +303,11 @@ function revealContent() {
   if (contentReady) return;
 
   contentReady = true;
+  contentScroll = CONFIG.sectionLength * CONFIG.panelFadeInEnd;
+  targetContentScroll = contentScroll;
   document.body.classList.add('content-ready');
   finalContent?.setAttribute('aria-hidden', 'false');
+  updateContentPanels(true);
 }
 
 function enterCompactMode() {
@@ -283,6 +368,15 @@ function normalizeWheelDelta(event) {
   return clamp(delta * unitMultiplier, 0, CONFIG.maxWheelDelta);
 }
 
+function normalizeSignedWheelDelta(event) {
+  const rawDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+  const unitMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? getViewportSize().height : 1;
+  const signedDelta = rawDelta * unitMultiplier;
+  const direction = signedDelta < 0 ? -1 : 1;
+
+  return direction * clamp(Math.abs(signedDelta), 0, CONFIG.maxWheelDelta);
+}
+
 function tick() {
   if (resizePending) {
     updateViewportVars();
@@ -292,6 +386,7 @@ function tick() {
   if (ready) {
     advancePosition();
     updateCompactMode();
+    updateContentPanels();
     renderPosition(position);
   }
 
@@ -310,6 +405,9 @@ function advanceFromWheel(event) {
     pendingImpulse + normalizedDelta * CONFIG.wheelSensitivity,
     CONFIG.maxPendingImpulse
   );
+
+  const signedDelta = normalizeSignedWheelDelta(event);
+  advanceContentPosition(signedDelta / getContentScrollDistance());
 }
 
 function advanceFromKeyboard(event) {
@@ -317,10 +415,15 @@ function advanceFromKeyboard(event) {
   if (!keys.includes(event.code)) return;
 
   event.preventDefault();
+  const impulse = event.code.includes('Page') || event.code === 'Space' ? 0.5 : 0.22;
+  const contentDirection = event.code === 'ArrowUp' || event.code === 'PageUp' ? -1 : 1;
+
   pendingImpulse = Math.min(
-    pendingImpulse + (event.code.includes('Page') || event.code === 'Space' ? 0.5 : 0.22),
+    pendingImpulse + impulse,
     CONFIG.maxPendingImpulse
   );
+
+  advanceContentPosition(contentDirection * CONFIG.contentKeyboardStep);
 }
 
 function advanceFromTouchStart(event) {
@@ -342,6 +445,7 @@ function advanceFromTouchMove(event) {
 
   const deltaX = Math.abs(touch.clientX - lastTouchX);
   const deltaY = Math.abs(touch.clientY - lastTouchY);
+  const signedDeltaY = lastTouchY - touch.clientY;
   const normalizedDelta = clamp(deltaX + deltaY, 0, CONFIG.maxTouchDelta);
 
   lastTouchX = touch.clientX;
@@ -355,6 +459,8 @@ function advanceFromTouchMove(event) {
     pendingImpulse + touchImpulse,
     CONFIG.maxTouchPendingImpulse
   );
+
+  advanceContentPosition(signedDeltaY / getContentScrollDistance());
 }
 
 function advanceFromTouchEnd() {
