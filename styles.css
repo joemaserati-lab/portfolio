@@ -4,6 +4,9 @@
   --background: #0000ff;
   --foreground: #fff;
   --label-color: #ffffff;
+  --app-height: 100dvh;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 * {
@@ -28,7 +31,7 @@ body {
   inset: 0;
   z-index: 10;
   width: 100vw;
-  height: 100vh;
+  height: var(--app-height);
   overflow: hidden;
   background: transparent;
   pointer-events: none;
@@ -71,7 +74,7 @@ body {
 }
 
 .hero-type-top {
-  top: 0;
+  top: var(--safe-top);
   left: 0;
   z-index: 1;
   width: 100vw;
@@ -101,7 +104,7 @@ body {
 }
 
 .hero-type-bottom {
-  bottom: 0;
+  bottom: var(--safe-bottom);
   z-index: 3;
   font-size: clamp(64px, 7vw, 140px);
   letter-spacing: -0.065em;
@@ -126,7 +129,7 @@ body {
 .loading {
   position: fixed;
   left: 50%;
-  bottom: 32px;
+  bottom: calc(32px + var(--safe-bottom));
   transform: translateX(-50%);
   font-size: 11px;
   line-height: 1;
@@ -144,10 +147,11 @@ body {
 .final-content {
   position: fixed;
   inset: 0;
+  height: var(--app-height);
   z-index: 6;
   display: grid;
   place-items: center;
-  padding: clamp(170px, 24vh, 260px) clamp(20px, 5vw, 80px) clamp(72px, 12vh, 130px);
+  padding: calc(clamp(170px, 24vh, 260px) + var(--safe-top)) clamp(20px, 5vw, 80px) calc(clamp(72px, 12vh, 130px) + var(--safe-bottom));
   color: var(--label-color);
   text-align: center;
   opacity: 0;
@@ -197,9 +201,10 @@ body.content-ready .final-content {
 
   .hero-type-bottom {
     font-size: clamp(34px, 9vw, 64px);
+    bottom: calc(10px + var(--safe-bottom));
   }
 
   .final-content {
-    padding-top: clamp(140px, 24vh, 220px);
+    padding-top: calc(clamp(140px, 24vh, 220px) + var(--safe-top));
   }
 }

@@ -2,15 +2,15 @@ const CONFIG = {
   frameCount: 20,
   framePath: (index) => `assets-webp/frame-${String(index).padStart(2, '0')}.webp?v=webp-85`,
 
-  // Profilo volutamente lento: lo scroll deve controllare il movimento, non accelerarlo troppo.
-  wheelSensitivity: 0.0016,
+  // Profilo reattivo: basta meno scroll per completare il ciclo.
+  wheelSensitivity: 0.0022,
 
   // Taglia i picchi dei mouse wheel tradizionali e dei trackpad molto sensibili.
   maxWheelDelta: 80,
 
   // Swipe mobile: come il wheel, qualunque direzione manda avanti la sequenza.
-  touchSensitivity: 0.0055,
-  minTouchImpulse: 0.018,
+  touchSensitivity: 0.009,
+  minTouchImpulse: 0.026,
   maxTouchDelta: 140,
   maxTouchPendingImpulse: 0.58,
 
@@ -18,10 +18,10 @@ const CONFIG = {
   maxPendingImpulse: 0.32,
 
   // Più vicino a 1 = animazione più lunga e morbida dopo lo scroll.
-  inertia: 0.86,
+  inertia: 0.78,
 
   // Smussa l'arrivo degli impulsi di scroll prima di applicarli alla sequenza.
-  inputSmoothing: 0.16,
+  inputSmoothing: 0.24,
 
   // Interpola visivamente tra un frame e il successivo.
   frameInterpolation: false,
@@ -34,8 +34,8 @@ const CONFIG = {
 
   backgroundColor: '#0000ff',
 
-  // Dopo due cicli il runner diventa un'icona fixed in alto, ma resta controllato dallo scroll.
-  compactLoopCount: 2,
+  // Dopo un ciclo il runner diventa un'icona fixed in alto, ma resta controllato dallo scroll.
+  compactLoopCount: 1,
   compactIconHeight: 200,
   compactIconTop: 28,
   compactTransitionSpeed: 0.018,
@@ -64,6 +64,26 @@ let touchActive = false;
 let lastTouchX = 0;
 let lastTouchY = 0;
 
+function getViewportSize() {
+  const visualViewport = window.visualViewport;
+
+  return {
+    width: Math.round(visualViewport?.width || window.innerWidth),
+    height: Math.round(visualViewport?.height || window.innerHeight),
+  };
+}
+
+function updateViewportVars() {
+  const { height } = getViewportSize();
+  document.documentElement.style.setProperty('--app-height', `${height}px`);
+}
+
+function getSafeAreaInset(name) {
+  const rawValue = getComputedStyle(document.documentElement).getPropertyValue(name);
+  const value = Number.parseFloat(rawValue);
+  return Number.isFinite(value) ? value : 0;
+}
+
 function preloadFrames() {
   return Promise.all(
     Array.from({ length: CONFIG.frameCount }, (_, index) => {
@@ -85,16 +105,17 @@ function preloadFrames() {
 
 function resizeCanvas() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const width = Math.round(window.innerWidth * dpr);
-  const height = Math.round(window.innerHeight * dpr);
+  const viewport = getViewportSize();
+  const width = Math.round(viewport.width * dpr);
+  const height = Math.round(viewport.height * dpr);
 
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
   }
 
-  canvas.style.width = `${window.innerWidth}px`;
-  canvas.style.height = `${window.innerHeight}px`;
+  canvas.style.width = `${viewport.width}px`;
+  canvas.style.height = `${viewport.height}px`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
@@ -103,8 +124,7 @@ function resizeCanvas() {
 }
 
 function getDrawRect(img) {
-  const viewportW = window.innerWidth;
-  const viewportH = window.innerHeight;
+  const { width: viewportW, height: viewportH } = getViewportSize();
   const imageRatio = img.width / img.height;
   const viewportRatio = viewportW / viewportH;
 
@@ -142,7 +162,7 @@ function getDrawRect(img) {
   const visibleCenterX = (CONFIG.compactVisibleBounds.x + CONFIG.compactVisibleBounds.w / 2) * visibleScale;
   const compactRect = {
     x: viewportW / 2 - visibleCenterX,
-    y: CONFIG.compactIconTop - CONFIG.compactVisibleBounds.y * visibleScale,
+    y: getSafeAreaInset('--safe-top') + CONFIG.compactIconTop - CONFIG.compactVisibleBounds.y * visibleScale,
     w: compactW,
     h: compactH,
   };
@@ -236,15 +256,16 @@ function updateCompactMode() {
 }
 
 function renderPosition(rawPosition) {
+  const viewport = getViewportSize();
   const basePosition = Math.floor(rawPosition);
   const frameA = getLoopedIndex(basePosition);
   const frameB = getLoopedIndex(basePosition + 1);
   const blend = CONFIG.frameInterpolation ? easeInOut(rawPosition - basePosition) : 0;
-  const signature = `${frameA}:${frameB}:${blend.toFixed(3)}:${CONFIG.backgroundColor}:${compactProgress.toFixed(3)}:${window.innerWidth}x${window.innerHeight}`;
+  const signature = `${frameA}:${frameB}:${blend.toFixed(3)}:${CONFIG.backgroundColor}:${compactProgress.toFixed(3)}:${viewport.width}x${viewport.height}`;
 
   if (signature === renderedSignature) return;
 
-  ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  ctx.clearRect(0, 0, viewport.width, viewport.height);
   drawImageFull(frames[frameA], 1);
 
   if (CONFIG.frameInterpolation && blend > 0.001) {
@@ -258,12 +279,15 @@ function normalizeWheelDelta(event) {
   const delta = Math.abs(event.deltaY) + Math.abs(event.deltaX);
 
   // deltaMode: 0 pixel, 1 line, 2 page.
-  const unitMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+  const unitMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? getViewportSize().height : 1;
   return clamp(delta * unitMultiplier, 0, CONFIG.maxWheelDelta);
 }
 
 function tick() {
-  if (resizePending) resizeCanvas();
+  if (resizePending) {
+    updateViewportVars();
+    resizeCanvas();
+  }
 
   if (ready) {
     advancePosition();
@@ -337,9 +361,16 @@ function advanceFromTouchEnd() {
   touchActive = false;
 }
 
-window.addEventListener('resize', () => {
+function queueResize() {
   resizePending = true;
-});
+}
+
+updateViewportVars();
+
+window.addEventListener('resize', queueResize);
+window.addEventListener('orientationchange', queueResize);
+window.visualViewport?.addEventListener('resize', queueResize);
+window.visualViewport?.addEventListener('scroll', queueResize);
 
 window.addEventListener('wheel', advanceFromWheel, { passive: false });
 window.addEventListener('keydown', advanceFromKeyboard, { passive: false });
