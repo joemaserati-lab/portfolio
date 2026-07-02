@@ -14,6 +14,8 @@ const CONFIG = {
   keyboardImpulse: 0.34,
   scrollSensitivity: 0.002,
   mobileScrollSensitivity: 0.004,
+  mobileDirectScrollSensitivity: 0.035,
+  mobileDirectTouchSensitivity: 0.045,
   inputSmoothing: 0.24,
   inertia: 0.78,
   maxVelocity: 0.13,
@@ -387,6 +389,20 @@ function advanceFromScroll() {
   const currentScrollY = window.scrollY || 0;
   const delta = Math.abs(currentScrollY - lastScrollY);
   lastScrollY = currentScrollY;
+
+  if (isMobileViewport()) {
+    position += clamp(delta, 0, CONFIG.maxWheelDelta) * CONFIG.mobileDirectScrollSensitivity;
+    renderedSignature = '';
+    renderRunner(position, true);
+
+    if (inputLogCount < 20) {
+      inputLogCount += 1;
+      debugLog('mobile direct scroll', { scrollY: currentScrollY, delta, position });
+    }
+
+    return;
+  }
+
   const sensitivity = isMobileViewport() ? CONFIG.mobileScrollSensitivity : CONFIG.scrollSensitivity;
 
   addImpulse(clamp(delta, 0, CONFIG.maxWheelDelta) * sensitivity);
@@ -416,10 +432,24 @@ function advanceFromTouchMove(event) {
   const deltaX = Math.abs(touch.clientX - lastTouchX);
   const deltaY = Math.abs(touch.clientY - lastTouchY);
   const normalizedDelta = clamp(deltaX + deltaY, 0, CONFIG.maxTouchDelta);
-  const sensitivity = isMobileViewport() ? CONFIG.mobileTouchSensitivity : CONFIG.touchSensitivity;
 
   lastTouchX = touch.clientX;
   lastTouchY = touch.clientY;
+
+  if (isMobileViewport()) {
+    position += Math.max(normalizedDelta * CONFIG.mobileDirectTouchSensitivity, CONFIG.minTouchImpulse);
+    renderedSignature = '';
+    renderRunner(position, true);
+
+    if (inputLogCount < 20) {
+      inputLogCount += 1;
+      debugLog('mobile direct touch', { normalizedDelta, position });
+    }
+
+    return;
+  }
+
+  const sensitivity = CONFIG.touchSensitivity;
 
   addImpulse(Math.max(normalizedDelta * sensitivity, CONFIG.minTouchImpulse));
 }
