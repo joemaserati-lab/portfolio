@@ -467,6 +467,13 @@ function updatePageBackground() {
   }
 }
 
+function initializeRunnerImage() {
+  runnerFrame.removeAttribute('srcset');
+  runnerFrame.removeAttribute('sizes');
+  runnerFrame.src = getFramePath(0);
+  currentFrameIndex = 0;
+}
+
 function queueResize() {
   resizePending = true;
   renderedSignature = '';
@@ -511,6 +518,7 @@ if (!runnerFrame) {
     initialRect: runnerFrame.getBoundingClientRect(),
   });
 
+  initializeRunnerImage();
   window.addEventListener('resize', queueResize);
   window.addEventListener('orientationchange', queueResize);
   window.visualViewport?.addEventListener('resize', queueResize);
