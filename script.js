@@ -23,6 +23,7 @@ const CONFIG = {
 const canvas = document.getElementById('runnerCanvas');
 const ctx = canvas?.getContext('2d', { alpha: true });
 const loading = document.getElementById('loading');
+const runnerStage = document.querySelector('.runner-stage');
 const runnerSlot = document.querySelector('.runner-slot');
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -60,6 +61,12 @@ function preloadFrames() {
 
           if (loading) {
             loading.textContent = `Loading sequence ${loadedFrames}/${CONFIG.frameCount}`;
+          }
+
+          if (index === 0 && canvas && ctx) {
+            resizeCanvas();
+            renderFrame(0, true);
+            document.body.classList.add('has-runner-frame');
           }
 
           resolve(img);
@@ -199,7 +206,7 @@ function getLoopedIndex(index) {
   return looped < 0 ? looped + CONFIG.frameCount : looped;
 }
 
-function renderFrame(rawPosition) {
+function renderFrame(rawPosition, force = false) {
   if (!canvas || !ctx || frames.length === 0) return;
 
   const viewport = getViewportSize();
@@ -207,9 +214,10 @@ function renderFrame(rawPosition) {
   const compactProgress = getHeroCompactProgress();
   const signature = `${frameIndex}:${compactProgress.toFixed(3)}:${viewport.width}x${viewport.height}`;
 
-  if (signature === renderedSignature) return;
+  if (signature === renderedSignature && !force) return;
 
   const img = frames[frameIndex];
+  if (!img) return;
   const rect = getDrawRect(img);
 
   ctx.clearRect(0, 0, viewport.width, viewport.height);
@@ -298,6 +306,10 @@ function updatePageBackground() {
 
   if (canvas) {
     canvas.style.backgroundColor = 'transparent';
+  }
+
+  if (runnerStage) {
+    runnerStage.style.backgroundColor = 'transparent';
   }
 }
 
