@@ -222,6 +222,7 @@ function renderFrame(rawPosition, force = false) {
 
   ctx.clearRect(0, 0, viewport.width, viewport.height);
   ctx.drawImage(img, rect.x, rect.y, rect.w, rect.h);
+  document.body.classList.add('canvas-ready');
 
   renderedSignature = signature;
 }
@@ -363,6 +364,8 @@ if (!canvas || !ctx) {
       renderFrame(0);
     })
     .catch((error) => {
+      document.body.classList.add('runner-error');
+
       if (loading) {
         loading.textContent = error.message;
       }

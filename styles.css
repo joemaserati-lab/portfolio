@@ -146,6 +146,7 @@ a:focus-visible {
   height: 100vh;
   pointer-events: none;
   opacity: 0;
+  filter: brightness(1.45) contrast(1.35);
   transition: opacity 420ms ease;
 }
 
@@ -154,13 +155,7 @@ body.has-runner-frame .runner-stage {
   opacity: 1;
 }
 
-.hero {
-  position: relative;
-  min-height: 112svh;
-  display: block;
-  padding: 0;
-}
-
+.runner-fallback,
 #runnerCanvas {
   position: absolute;
   inset: 0;
@@ -168,7 +163,29 @@ body.has-runner-frame .runner-stage {
   height: 100%;
   display: block;
   pointer-events: none;
+}
+
+.runner-fallback {
+  z-index: 1;
+  object-fit: cover;
+  opacity: 1;
+  transition: opacity 220ms ease;
+}
+
+body.canvas-ready .runner-fallback {
+  opacity: 0;
+}
+
+#runnerCanvas {
+  z-index: 2;
   background: transparent;
+}
+
+.hero {
+  position: relative;
+  min-height: 112svh;
+  display: block;
+  padding: 0;
 }
 
 .hero::after {
