@@ -2,13 +2,10 @@ const CONFIG = {
   debug: true,
   frameCount: 20,
   framePath: (index) => `assets-webp/frame-${String(index).padStart(2, '0')}.webp?v=webp-85`,
+  mobileFramePath: (index) => `asset-webp-mobile/mobile${String(index).padStart(2, '0')}.webp?v=mobile-1`,
   fit: 'cover',
-  mobileFit: 'contain',
+  mobileFit: 'cover',
   mobileBreakpoint: 760,
-  mobileHeroVisibleHeightRatio: 0.78,
-  mobileHeroVisibleBounds: { x: 640, y: 70, w: 720, h: 980 },
-  mobileHeroOffsetX: 0,
-  mobileHeroOffsetY: 0,
   backgroundColor: '#0000ff',
   wheelSensitivity: 0.0022,
   touchSensitivity: 0.008,
@@ -32,7 +29,7 @@ const runnerStage = document.querySelector('.runner-stage');
 const runnerSlot = document.querySelector('.runner-slot');
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-const frames = [];
+let frames = [];
 let loadedFrames = 0;
 let position = 0;
 let velocity = 0;
@@ -47,6 +44,8 @@ let lastTouchX = 0;
 let lastTouchY = 0;
 let renderLogCount = 0;
 let inputLogCount = 0;
+let currentSource = '';
+let loadToken = 0;
 
 function debugLog(label, data = {}) {
   if (!CONFIG.debug) return;
@@ -63,16 +62,42 @@ function getViewportSize() {
   };
 }
 
+function getSourceName() {
+  return getViewportSize().width <= CONFIG.mobileBreakpoint ? 'mobile' : 'desktop';
+}
+
+function getFramePath(index, source = getSourceName()) {
+  return source === 'mobile' ? CONFIG.mobileFramePath(index) : CONFIG.framePath(index);
+}
+
 function preloadFrames() {
+  const source = getSourceName();
+  const token = loadToken + 1;
+
+  loadToken = token;
+  currentSource = source;
+  frames = [];
+  loadedFrames = 0;
+  currentFrameIndex = -1;
+  renderedSignature = '';
+
+  debugLog('preload start', { source, token });
+
   return Promise.all(
     Array.from({ length: CONFIG.frameCount }, (_, index) => {
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.decoding = 'async';
         img.onload = () => {
+          if (token !== loadToken) {
+            resolve(img);
+            return;
+          }
+
           frames[index] = img;
           loadedFrames += 1;
           debugLog('frame loaded', {
+            source,
             index,
             src: img.src,
             naturalWidth: img.naturalWidth,
@@ -92,13 +117,31 @@ function preloadFrames() {
           resolve(img);
         };
         img.onerror = () => {
-          debugLog('frame error', { index, src: CONFIG.framePath(index) });
-          reject(new Error(`Frame non caricato: ${CONFIG.framePath(index)}`));
+          debugLog('frame error', { source, index, src: getFramePath(index, source) });
+          reject(new Error(`Frame non caricato: ${getFramePath(index, source)}`));
         };
-        img.src = CONFIG.framePath(index);
+        img.src = getFramePath(index, source);
       });
     })
   );
+}
+
+function reloadFramesForViewport() {
+  const nextSource = getSourceName();
+  if (nextSource === currentSource) return;
+
+  ready = false;
+  document.body.classList.remove('is-loaded');
+  debugLog('source changed', { from: currentSource, to: nextSource });
+
+  preloadFrames()
+    .then(() => {
+      ready = true;
+      document.body.classList.add('is-loaded');
+      loading?.classList.add('is-hidden');
+      renderRunner(position, true);
+    })
+    .catch(handleFrameError);
 }
 
 function clamp(value, min, max) {
@@ -125,21 +168,6 @@ function getBaseDrawRect(img) {
   const imageRatio = img.naturalWidth / img.naturalHeight;
   const viewportRatio = viewportW / viewportH;
   const fit = viewportW <= CONFIG.mobileBreakpoint ? CONFIG.mobileFit : CONFIG.fit;
-
-  if (viewportW <= CONFIG.mobileBreakpoint) {
-    const bounds = CONFIG.mobileHeroVisibleBounds;
-    const visibleHeight = viewportH * CONFIG.mobileHeroVisibleHeightRatio;
-    const visibleScale = visibleHeight / bounds.h;
-    const visibleCenterX = (bounds.x + bounds.w / 2) * visibleScale;
-    const visibleCenterY = (bounds.y + bounds.h / 2) * visibleScale;
-
-    return {
-      x: viewportW / 2 - visibleCenterX + CONFIG.mobileHeroOffsetX,
-      y: viewportH / 2 - visibleCenterY + CONFIG.mobileHeroOffsetY,
-      w: img.naturalWidth * visibleScale,
-      h: img.naturalHeight * visibleScale,
-    };
-  }
 
   let drawW;
   let drawH;
@@ -241,7 +269,7 @@ function renderRunner(rawPosition, force = false) {
 
   const viewport = getViewportSize();
   const compactProgress = getHeroCompactProgress();
-  const signature = `${frameIndex}:${compactProgress.toFixed(3)}:${viewport.width}x${viewport.height}`;
+  const signature = `${currentSource}:${frameIndex}:${compactProgress.toFixed(3)}:${viewport.width}x${viewport.height}`;
 
   if (signature === renderedSignature && !force) return;
 
@@ -261,6 +289,7 @@ function renderRunner(rawPosition, force = false) {
     renderLogCount += 1;
     debugLog('render applied', {
       rawPosition,
+      source: currentSource,
       frameIndex,
       currentFrameIndex,
       src: runnerFrame.src,
@@ -386,6 +415,17 @@ function updatePageBackground() {
 function queueResize() {
   resizePending = true;
   renderedSignature = '';
+  reloadFramesForViewport();
+}
+
+function handleFrameError(error) {
+  document.body.classList.add('runner-error');
+
+  if (loading) {
+    loading.textContent = error.message;
+  }
+
+  console.error(error);
 }
 
 function tick() {
@@ -443,15 +483,7 @@ if (!runnerFrame) {
       loading?.classList.add('is-hidden');
       renderRunner(0, true);
     })
-    .catch((error) => {
-      document.body.classList.add('runner-error');
-
-      if (loading) {
-        loading.textContent = error.message;
-      }
-
-      console.error(error);
-    });
+    .catch(handleFrameError);
 
   tick();
 }
