@@ -155,6 +155,10 @@ body.is-loaded .runner-stage {
   opacity: 1;
 }
 
+body.runner-compact .runner-stage {
+  z-index: 35;
+}
+
 .runner-frame {
   position: absolute;
   display: block;

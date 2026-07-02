@@ -5,6 +5,7 @@ const CONFIG = {
   fit: 'cover',
   mobileFit: 'contain',
   mobileBreakpoint: 760,
+  mobileHeroVisibleHeightRatio: 0.78,
   backgroundColor: '#0000ff',
   wheelSensitivity: 0.0022,
   touchSensitivity: 0.008,
@@ -121,6 +122,20 @@ function getBaseDrawRect(img) {
   const imageRatio = img.naturalWidth / img.naturalHeight;
   const viewportRatio = viewportW / viewportH;
   const fit = viewportW <= CONFIG.mobileBreakpoint ? CONFIG.mobileFit : CONFIG.fit;
+
+  if (viewportW <= CONFIG.mobileBreakpoint) {
+    const visibleHeight = viewportH * CONFIG.mobileHeroVisibleHeightRatio;
+    const visibleScale = visibleHeight / CONFIG.compactVisibleBounds.h;
+    const visibleCenterX = (CONFIG.compactVisibleBounds.x + CONFIG.compactVisibleBounds.w / 2) * visibleScale;
+    const visibleCenterY = (CONFIG.compactVisibleBounds.y + CONFIG.compactVisibleBounds.h / 2) * visibleScale;
+
+    return {
+      x: viewportW / 2 - visibleCenterX,
+      y: viewportH / 2 - visibleCenterY,
+      w: img.naturalWidth * visibleScale,
+      h: img.naturalHeight * visibleScale,
+    };
+  }
 
   let drawW;
   let drawH;
