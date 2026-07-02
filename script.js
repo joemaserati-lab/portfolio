@@ -1,19 +1,17 @@
 const CONFIG = {
-  debug: true,
+  debug: false,
   frameCount: 20,
-  framePath: (index) => `assets-webp/frame-${String(index).padStart(2, '0')}.webp?v=webp-85`,
-  mobileFramePath: (index) => `asset-webp-mobile/mobile${String(index).padStart(2, '0')}.webp?v=mobile-1`,
+  framePath: (index) => `assets-webp/frame-${String(index).padStart(2, '0')}.webp`,
+  mobileFramePath: (index) => `asset-webp-mobile/mobile${String(index).padStart(2, '0')}.webp`,
   fit: 'cover',
   mobileFit: 'cover',
   mobileBreakpoint: 760,
   backgroundColor: '#0000ff',
   wheelSensitivity: 0.0022,
   touchSensitivity: 0.008,
-  mobileTouchSensitivity: 0.014,
   minTouchImpulse: 0.018,
   keyboardImpulse: 0.34,
   scrollSensitivity: 0.002,
-  mobileScrollSensitivity: 0.004,
   mobileDirectScrollSensitivity: 0.035,
   mobileDirectTouchSensitivity: 0.045,
   inputSmoothing: 0.24,
@@ -49,36 +47,65 @@ let lastScrollY = window.scrollY || 0;
 let touchActive = false;
 let lastTouchX = 0;
 let lastTouchY = 0;
-let renderLogCount = 0;
-let inputLogCount = 0;
 let currentSource = '';
 let loadToken = 0;
+let reloadTimer = null;
 
 function debugLog(label, data = {}) {
-  if (!CONFIG.debug) return;
-
-  console.log(`[runner] ${label}`, data);
+  if (CONFIG.debug) console.log(`[runner] ${label}`, data);
 }
 
 function getViewportSize() {
+  const isMobile = window.innerWidth <= CONFIG.mobileBreakpoint;
   const visualViewport = window.visualViewport;
 
+  if (isMobile) {
+    return {
+      width: Math.round(visualViewport?.width || window.innerWidth || document.documentElement.clientWidth || 0),
+      height: Math.round(visualViewport?.height || window.innerHeight || document.documentElement.clientHeight || 0),
+    };
+  }
+
   return {
-    width: Math.round(visualViewport?.width || window.innerWidth),
-    height: Math.round(visualViewport?.height || window.innerHeight),
+    width: Math.round(window.innerWidth || document.documentElement.clientWidth || 0),
+    height: Math.round(window.innerHeight || document.documentElement.clientHeight || 0),
   };
+}
+
+function syncViewportVars() {
+  if (!isMobileViewport()) {
+    document.documentElement.style.removeProperty('--runner-vw');
+    document.documentElement.style.removeProperty('--runner-vh');
+    return;
+  }
+
+  const viewport = getViewportSize();
+  document.documentElement.style.setProperty('--runner-vw', `${viewport.width}px`);
+  document.documentElement.style.setProperty('--runner-vh', `${viewport.height}px`);
+}
+
+function isMobileViewport() {
+  return (window.innerWidth || document.documentElement.clientWidth || 0) <= CONFIG.mobileBreakpoint;
 }
 
 function getSourceName() {
   return isMobileViewport() ? 'mobile' : 'desktop';
 }
 
-function isMobileViewport() {
-  return getViewportSize().width <= CONFIG.mobileBreakpoint;
-}
-
 function getFramePath(index, source = getSourceName()) {
   return source === 'mobile' ? CONFIG.mobileFramePath(index) : CONFIG.framePath(index);
+}
+
+function firstAvailableFrame() {
+  return frames.find(Boolean) || null;
+}
+
+function initializeRunnerImage() {
+  if (!runnerFrame) return;
+  runnerFrame.removeAttribute('srcset');
+  runnerFrame.removeAttribute('sizes');
+  runnerFrame.src = getFramePath(0);
+  currentFrameIndex = -1;
 }
 
 function preloadFrames() {
@@ -92,67 +119,50 @@ function preloadFrames() {
   currentFrameIndex = -1;
   renderedSignature = '';
 
-  debugLog('preload start', { source, token });
+  if (loading) {
+    loading.textContent = `Loading sequence 0/${CONFIG.frameCount}`;
+    loading.classList.remove('is-hidden');
+  }
 
-  return Promise.all(
-    Array.from({ length: CONFIG.frameCount }, (_, index) => {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.decoding = 'async';
-        img.onload = () => {
-          if (token !== loadToken) {
-            resolve(img);
-            return;
-          }
+  const loaders = Array.from({ length: CONFIG.frameCount }, (_, index) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.decoding = 'async';
 
-          frames[index] = img;
-          loadedFrames += 1;
-          debugLog('frame loaded', {
-            source,
-            index,
-            src: img.src,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight,
-            loadedFrames,
-          });
+      img.onload = () => {
+        if (token !== loadToken) {
+          resolve(null);
+          return;
+        }
 
-          if (loading) {
-            loading.textContent = `Loading sequence ${loadedFrames}/${CONFIG.frameCount}`;
-          }
+        frames[index] = img;
+        loadedFrames += 1;
 
-          if (index === 0) {
-            renderRunner(0, true);
-            document.body.classList.add('runner-ready');
-          }
+        if (loading) loading.textContent = `Loading sequence ${loadedFrames}/${CONFIG.frameCount}`;
+        if (index === 0 || !runnerFrame?.src) renderRunner(position, true);
 
-          resolve(img);
-        };
-        img.onerror = () => {
-          debugLog('frame error', { source, index, src: getFramePath(index, source) });
-          reject(new Error(`Frame non caricato: ${getFramePath(index, source)}`));
-        };
-        img.src = getFramePath(index, source);
-      });
-    })
-  );
-}
+        resolve(img);
+      };
 
-function reloadFramesForViewport() {
-  const nextSource = getSourceName();
-  if (nextSource === currentSource) return;
+      img.onerror = () => {
+        debugLog('frame error', { source, index, src: getFramePath(index, source) });
+        resolve(null);
+      };
 
-  ready = false;
-  document.body.classList.remove('is-loaded');
-  debugLog('source changed', { from: currentSource, to: nextSource });
+      img.src = getFramePath(index, source);
+    });
+  });
 
-  preloadFrames()
-    .then(() => {
-      ready = true;
-      document.body.classList.add('is-loaded');
-      loading?.classList.add('is-hidden');
-      renderRunner(position, true);
-    })
-    .catch(handleFrameError);
+  return Promise.all(loaders).then(() => {
+    const availableFrames = frames.filter(Boolean);
+
+    if (availableFrames.length === 0) {
+      throw new Error(`Nessun frame caricato per la sorgente ${source}`);
+    }
+
+    if (!frames[0]) frames[0] = availableFrames[0];
+    return frames;
+  });
 }
 
 function clamp(value, min, max) {
@@ -170,48 +180,20 @@ function getHeroCompactProgress() {
   const endRatio = isMobileViewport() ? CONFIG.mobileCompactEnd : CONFIG.compactEnd;
   const start = viewport.height * startRatio;
   const end = viewport.height * endRatio;
-
   if (end <= start) return 1;
-
   return easeInOut((window.scrollY - start) / (end - start));
 }
 
 function getBaseDrawRect(img) {
   const { width: viewportW, height: viewportH } = getViewportSize();
   const imageRatio = img.naturalWidth / img.naturalHeight;
-  const viewportRatio = viewportW / viewportH;
-  const fit = viewportW <= CONFIG.mobileBreakpoint ? CONFIG.mobileFit : CONFIG.fit;
 
-  if (isMobileViewport()) {
-    const drawH = viewportH;
-    const drawW = viewportH * imageRatio;
-
-    return {
-      x: (viewportW - drawW) / 2,
-      y: 0,
-      w: drawW,
-      h: drawH,
-    };
-  }
-
-  let drawW;
-  let drawH;
-
-  if (fit === 'contain') {
-    if (imageRatio > viewportRatio) {
-      drawW = viewportW;
-      drawH = viewportW / imageRatio;
-    } else {
-      drawH = viewportH;
-      drawW = viewportH * imageRatio;
-    }
-  } else if (imageRatio > viewportRatio) {
-    drawH = viewportH;
-    drawW = viewportH * imageRatio;
-  } else {
-    drawW = viewportW;
-    drawH = viewportW / imageRatio;
-  }
+  /*
+    The runner is artwork, not a generic background.
+    It must be as tall as the visible viewport and centered on both axes.
+  */
+  const drawH = viewportH;
+  const drawW = drawH * imageRatio;
 
   return {
     x: (viewportW - drawW) / 2,
@@ -224,26 +206,31 @@ function getBaseDrawRect(img) {
 function getRunnerSlotRect() {
   const viewport = getViewportSize();
   const rect = runnerSlot?.getBoundingClientRect();
-
   if (!rect || rect.width === 0 || rect.height === 0) {
-    return {
-      x: viewport.width / 2 - 78,
-      y: 20,
-      w: 156,
-      h: CONFIG.compactIconHeight,
-    };
+    return { x: viewport.width / 2 - 78, y: 20, w: 156, h: CONFIG.compactIconHeight };
   }
-
-  return {
-    x: rect.left,
-    y: rect.top,
-    w: rect.width,
-    h: rect.height,
-  };
+  return { x: rect.left, y: rect.top, w: rect.width, h: rect.height };
 }
 
 function getRunnerRect(img) {
   const fullRect = getBaseDrawRect(img);
+
+  if (isMobileViewport()) {
+    document.body.classList.remove('runner-compact');
+    return fullRect;
+  }
+
+  const progress = getHeroCompactProgress();
+
+  /*
+    Desktop hero rule:
+    keep the runner centered and full-height while the compact transition has not started.
+  */
+  if (progress <= 0.02) {
+    document.body.classList.remove('runner-compact');
+    return fullRect;
+  }
+
   const slotRect = getRunnerSlotRect();
   const viewport = getViewportSize();
   const visibleHeight = Math.min(CONFIG.compactIconHeight, Math.max(slotRect.height * 1.75, viewport.height * 0.09));
@@ -258,7 +245,6 @@ function getRunnerRect(img) {
     w: compactW,
     h: compactH,
   };
-  const progress = getHeroCompactProgress();
 
   document.body.classList.toggle('runner-compact', progress > 0.72);
 
@@ -276,30 +262,22 @@ function getLoopedIndex(index) {
 }
 
 function renderRunner(rawPosition, force = false) {
-  if (!runnerFrame || frames.length === 0) {
-    debugLog('render skipped', {
-      reason: !runnerFrame ? 'missing runnerFrame' : 'no frames loaded',
-      frameArrayLength: frames.length,
-      loadedFrames,
-    });
-    return;
-  }
-
+  if (!runnerFrame) return;
+  syncViewportVars();
   const frameIndex = getLoopedIndex(Math.floor(rawPosition));
-  const img = frames[frameIndex] || frames[0];
-  if (!img) {
-    debugLog('render skipped', { reason: 'missing img', frameIndex, hasFrameZero: !!frames[0] });
-    return;
-  }
+  const img = frames[frameIndex] || firstAvailableFrame();
+  if (!img) return;
 
   const viewport = getViewportSize();
   const compactProgress = getHeroCompactProgress();
   const signature = `${currentSource}:${frameIndex}:${compactProgress.toFixed(3)}:${viewport.width}x${viewport.height}`;
-
   if (signature === renderedSignature && !force) return;
 
   if (frameIndex !== currentFrameIndex && frames[frameIndex]) {
     runnerFrame.src = frames[frameIndex].src;
+    currentFrameIndex = frameIndex;
+  } else if (currentFrameIndex === -1) {
+    runnerFrame.src = img.src;
     currentFrameIndex = frameIndex;
   }
 
@@ -308,44 +286,13 @@ function renderRunner(rawPosition, force = false) {
   runnerFrame.style.top = `${rect.y.toFixed(2)}px`;
   runnerFrame.style.width = `${rect.w.toFixed(2)}px`;
   runnerFrame.style.height = `${rect.h.toFixed(2)}px`;
+  runnerFrame.style.transform = 'none';
   document.body.classList.add('runner-ready');
-
-  if (renderLogCount < 40 || force) {
-    renderLogCount += 1;
-    debugLog('render applied', {
-      rawPosition,
-      source: currentSource,
-      frameIndex,
-      currentFrameIndex,
-      src: runnerFrame.src,
-      compactProgress,
-      viewport,
-      image: {
-        naturalWidth: img.naturalWidth,
-        naturalHeight: img.naturalHeight,
-      },
-      rect,
-      styles: {
-        left: runnerFrame.style.left,
-        top: runnerFrame.style.top,
-        width: runnerFrame.style.width,
-        height: runnerFrame.style.height,
-      },
-      computed: {
-        stageOpacity: runnerStage ? getComputedStyle(runnerStage).opacity : null,
-        frameDisplay: getComputedStyle(runnerFrame).display,
-        frameVisibility: getComputedStyle(runnerFrame).visibility,
-        frameRect: runnerFrame.getBoundingClientRect(),
-      },
-    });
-  }
-
   renderedSignature = signature;
 }
 
 function addImpulse(amount) {
   if (prefersReducedMotion.matches || !Number.isFinite(amount) || amount <= 0) return;
-
   pendingImpulse = Math.min(pendingImpulse + amount, CONFIG.maxPendingImpulse);
 }
 
@@ -355,7 +302,6 @@ function advancePosition() {
   velocity = clamp(velocity, 0, CONFIG.maxVelocity);
   position += velocity;
   velocity *= CONFIG.inertia;
-
   if (velocity < 0.0004 && pendingImpulse < 0.0004) {
     velocity = 0;
     pendingImpulse = 0;
@@ -369,20 +315,12 @@ function normalizeWheelDelta(event) {
 }
 
 function advanceFromWheel(event) {
-  const normalizedDelta = normalizeWheelDelta(event);
-  addImpulse(normalizedDelta * CONFIG.wheelSensitivity);
-
-  if (inputLogCount < 20) {
-    inputLogCount += 1;
-    debugLog('wheel input', { normalizedDelta, pendingImpulse, velocity, position });
-  }
+  addImpulse(normalizeWheelDelta(event) * CONFIG.wheelSensitivity);
 }
 
 function advanceFromKeyboard(event) {
   const keys = ['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Space', 'Home', 'End'];
-  if (!keys.includes(event.code)) return;
-
-  addImpulse(CONFIG.keyboardImpulse);
+  if (keys.includes(event.code)) addImpulse(CONFIG.keyboardImpulse);
 }
 
 function advanceFromScroll() {
@@ -394,30 +332,16 @@ function advanceFromScroll() {
     position += clamp(delta, 0, CONFIG.maxWheelDelta) * CONFIG.mobileDirectScrollSensitivity;
     renderedSignature = '';
     renderRunner(position, true);
-
-    if (inputLogCount < 20) {
-      inputLogCount += 1;
-      debugLog('mobile direct scroll', { scrollY: currentScrollY, delta, position });
-    }
-
     return;
   }
 
-  const sensitivity = isMobileViewport() ? CONFIG.mobileScrollSensitivity : CONFIG.scrollSensitivity;
-
-  addImpulse(clamp(delta, 0, CONFIG.maxWheelDelta) * sensitivity);
+  addImpulse(clamp(delta, 0, CONFIG.maxWheelDelta) * CONFIG.scrollSensitivity);
   renderedSignature = '';
-
-  if (inputLogCount < 20) {
-    inputLogCount += 1;
-    debugLog('scroll input', { scrollY: currentScrollY, delta, pendingImpulse, velocity, position });
-  }
 }
 
 function advanceFromTouchStart(event) {
   const touch = event.touches[0];
   if (!touch) return;
-
   touchActive = true;
   lastTouchX = touch.clientX;
   lastTouchY = touch.clientY;
@@ -425,14 +349,12 @@ function advanceFromTouchStart(event) {
 
 function advanceFromTouchMove(event) {
   if (!touchActive) return;
-
   const touch = event.touches[0];
   if (!touch) return;
 
   const deltaX = Math.abs(touch.clientX - lastTouchX);
   const deltaY = Math.abs(touch.clientY - lastTouchY);
   const normalizedDelta = clamp(deltaX + deltaY, 0, CONFIG.maxTouchDelta);
-
   lastTouchX = touch.clientX;
   lastTouchY = touch.clientY;
 
@@ -440,18 +362,10 @@ function advanceFromTouchMove(event) {
     position += Math.max(normalizedDelta * CONFIG.mobileDirectTouchSensitivity, CONFIG.minTouchImpulse);
     renderedSignature = '';
     renderRunner(position, true);
-
-    if (inputLogCount < 20) {
-      inputLogCount += 1;
-      debugLog('mobile direct touch', { normalizedDelta, position });
-    }
-
     return;
   }
 
-  const sensitivity = CONFIG.touchSensitivity;
-
-  addImpulse(Math.max(normalizedDelta * sensitivity, CONFIG.minTouchImpulse));
+  addImpulse(Math.max(normalizedDelta * CONFIG.touchSensitivity, CONFIG.minTouchImpulse));
 }
 
 function advanceFromTouchEnd() {
@@ -461,33 +375,46 @@ function advanceFromTouchEnd() {
 function updatePageBackground() {
   document.documentElement.style.backgroundColor = CONFIG.backgroundColor;
   document.body.style.backgroundColor = CONFIG.backgroundColor;
-
-  if (runnerStage) {
-    runnerStage.style.backgroundColor = 'transparent';
-  }
+  if (runnerStage) runnerStage.style.backgroundColor = 'transparent';
 }
 
-function initializeRunnerImage() {
-  runnerFrame.removeAttribute('srcset');
-  runnerFrame.removeAttribute('sizes');
-  runnerFrame.src = getFramePath(0);
-  currentFrameIndex = 0;
+function completeLoadState() {
+  document.body.classList.add('is-loaded');
+  loading?.classList.add('is-hidden');
+}
+
+function handleFrameError(error) {
+  document.body.classList.add('runner-error', 'runner-disabled');
+  completeLoadState();
+  if (loading) loading.textContent = '';
+  console.error(error);
+}
+
+function reloadFramesForViewport() {
+  const nextSource = getSourceName();
+  if (nextSource === currentSource) {
+    renderedSignature = '';
+    return;
+  }
+
+  ready = false;
+  document.body.classList.remove('runner-disabled');
+
+  preloadFrames()
+    .then(() => {
+      ready = true;
+      completeLoadState();
+      renderRunner(position, true);
+    })
+    .catch(handleFrameError);
 }
 
 function queueResize() {
   resizePending = true;
   renderedSignature = '';
-  reloadFramesForViewport();
-}
-
-function handleFrameError(error) {
-  document.body.classList.add('runner-error');
-
-  if (loading) {
-    loading.textContent = error.message;
-  }
-
-  console.error(error);
+  syncViewportVars();
+  window.clearTimeout(reloadTimer);
+  reloadTimer = window.setTimeout(reloadFramesForViewport, 120);
 }
 
 function tick() {
@@ -495,33 +422,26 @@ function tick() {
     resizePending = false;
     renderedSignature = '';
   }
-
   if (ready) {
     advancePosition();
     renderRunner(position);
   }
-
   requestAnimationFrame(tick);
 }
 
-if (!runnerFrame) {
-  if (loading) {
-    loading.textContent = 'Runner non disponibile';
-  }
-} else {
-  debugLog('init', {
-    runnerFrame: !!runnerFrame,
-    runnerStage: !!runnerStage,
-    runnerSlot: !!runnerSlot,
-    href: window.location.href,
-    initialSrc: runnerFrame.src,
-    initialRect: runnerFrame.getBoundingClientRect(),
-  });
+syncViewportVars();
 
+if (!runnerFrame || prefersReducedMotion.matches) {
+  document.body.classList.add('runner-disabled');
+  completeLoadState();
+} else {
   initializeRunnerImage();
-  window.addEventListener('resize', queueResize);
-  window.addEventListener('orientationchange', queueResize);
-  window.visualViewport?.addEventListener('resize', queueResize);
+  updatePageBackground();
+
+  window.addEventListener('resize', queueResize, { passive: true });
+  window.addEventListener('orientationchange', queueResize, { passive: true });
+  window.visualViewport?.addEventListener('resize', queueResize, { passive: true });
+  window.visualViewport?.addEventListener('scroll', queueResize, { passive: true });
   window.addEventListener('scroll', advanceFromScroll, { passive: true });
   window.addEventListener('wheel', advanceFromWheel, { passive: true });
   window.addEventListener('keydown', advanceFromKeyboard, { passive: true });
@@ -534,16 +454,16 @@ if (!runnerFrame) {
     velocity = 0;
     pendingImpulse = 0;
     renderedSignature = '';
+    if (prefersReducedMotion.matches) {
+      document.body.classList.add('runner-disabled');
+      completeLoadState();
+    }
   });
-
-  updatePageBackground();
-  renderRunner(0, true);
 
   preloadFrames()
     .then(() => {
       ready = true;
-      document.body.classList.add('is-loaded');
-      loading?.classList.add('is-hidden');
+      completeLoadState();
       renderRunner(0, true);
     })
     .catch(handleFrameError);
