@@ -17,11 +17,9 @@ const CONFIG = {
   compactEnd: 1.12,
   compactIconHeight: 96,
   compactVisibleBounds: { x: 768, y: 104, w: 484, h: 932 },
-  maxDevicePixelRatio: 2,
 };
 
-const canvas = document.getElementById('runnerCanvas');
-const ctx = canvas?.getContext('2d', { alpha: true });
+const runnerFrame = document.getElementById('runnerFrame');
 const loading = document.getElementById('loading');
 const runnerStage = document.querySelector('.runner-stage');
 const runnerSlot = document.querySelector('.runner-slot');
@@ -32,9 +30,10 @@ let loadedFrames = 0;
 let position = 0;
 let velocity = 0;
 let pendingImpulse = 0;
-let resizePending = true;
 let ready = false;
+let resizePending = true;
 let renderedSignature = '';
+let currentFrameIndex = -1;
 let lastScrollY = window.scrollY || 0;
 let touchActive = false;
 let lastTouchX = 0;
@@ -63,10 +62,9 @@ function preloadFrames() {
             loading.textContent = `Loading sequence ${loadedFrames}/${CONFIG.frameCount}`;
           }
 
-          if (index === 0 && canvas && ctx) {
-            resizeCanvas();
-            renderFrame(0, true);
-            document.body.classList.add('has-runner-frame');
+          if (index === 0) {
+            renderRunner(0, true);
+            document.body.classList.add('runner-ready');
           }
 
           resolve(img);
@@ -87,29 +85,6 @@ function easeInOut(value) {
   return clamped * clamped * (3 - 2 * clamped);
 }
 
-function resizeCanvas() {
-  if (!canvas || !ctx) return;
-
-  const dpr = Math.min(window.devicePixelRatio || 1, CONFIG.maxDevicePixelRatio);
-  const viewport = getViewportSize();
-  const width = Math.round(viewport.width * dpr);
-  const height = Math.round(viewport.height * dpr);
-
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
-  }
-
-  canvas.style.width = `${viewport.width}px`;
-  canvas.style.height = `${viewport.height}px`;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-
-  resizePending = false;
-  renderedSignature = '';
-}
-
 function getHeroCompactProgress() {
   const viewport = getViewportSize();
   const start = viewport.height * CONFIG.compactStart;
@@ -122,7 +97,7 @@ function getHeroCompactProgress() {
 
 function getBaseDrawRect(img) {
   const { width: viewportW, height: viewportH } = getViewportSize();
-  const imageRatio = img.width / img.height;
+  const imageRatio = img.naturalWidth / img.naturalHeight;
   const viewportRatio = viewportW / viewportH;
 
   let drawW;
@@ -173,14 +148,14 @@ function getRunnerSlotRect() {
   };
 }
 
-function getDrawRect(img) {
+function getRunnerRect(img) {
   const fullRect = getBaseDrawRect(img);
   const slotRect = getRunnerSlotRect();
   const viewport = getViewportSize();
   const visibleHeight = Math.min(CONFIG.compactIconHeight, Math.max(slotRect.height * 1.75, viewport.height * 0.09));
   const visibleScale = visibleHeight / CONFIG.compactVisibleBounds.h;
-  const compactW = img.width * visibleScale;
-  const compactH = img.height * visibleScale;
+  const compactW = img.naturalWidth * visibleScale;
+  const compactH = img.naturalHeight * visibleScale;
   const visibleCenterX = (CONFIG.compactVisibleBounds.x + CONFIG.compactVisibleBounds.w / 2) * visibleScale;
   const visibleCenterY = (CONFIG.compactVisibleBounds.y + CONFIG.compactVisibleBounds.h / 2) * visibleScale;
   const compactRect = {
@@ -206,23 +181,30 @@ function getLoopedIndex(index) {
   return looped < 0 ? looped + CONFIG.frameCount : looped;
 }
 
-function renderFrame(rawPosition, force = false) {
-  if (!canvas || !ctx || frames.length === 0) return;
+function renderRunner(rawPosition, force = false) {
+  if (!runnerFrame || frames.length === 0) return;
+
+  const frameIndex = getLoopedIndex(Math.floor(rawPosition));
+  const img = frames[frameIndex] || frames[0];
+  if (!img) return;
 
   const viewport = getViewportSize();
-  const frameIndex = getLoopedIndex(Math.floor(rawPosition));
   const compactProgress = getHeroCompactProgress();
   const signature = `${frameIndex}:${compactProgress.toFixed(3)}:${viewport.width}x${viewport.height}`;
 
   if (signature === renderedSignature && !force) return;
 
-  const img = frames[frameIndex];
-  if (!img) return;
-  const rect = getDrawRect(img);
+  if (frameIndex !== currentFrameIndex && frames[frameIndex]) {
+    runnerFrame.src = frames[frameIndex].src;
+    currentFrameIndex = frameIndex;
+  }
 
-  ctx.clearRect(0, 0, viewport.width, viewport.height);
-  ctx.drawImage(img, rect.x, rect.y, rect.w, rect.h);
-  document.body.classList.add('canvas-ready');
+  const rect = getRunnerRect(img);
+  runnerFrame.style.left = `${rect.x.toFixed(2)}px`;
+  runnerFrame.style.top = `${rect.y.toFixed(2)}px`;
+  runnerFrame.style.width = `${rect.w.toFixed(2)}px`;
+  runnerFrame.style.height = `${rect.h.toFixed(2)}px`;
+  document.body.classList.add('runner-ready');
 
   renderedSignature = signature;
 }
@@ -305,10 +287,6 @@ function updatePageBackground() {
   document.documentElement.style.backgroundColor = CONFIG.backgroundColor;
   document.body.style.backgroundColor = CONFIG.backgroundColor;
 
-  if (canvas) {
-    canvas.style.backgroundColor = 'transparent';
-  }
-
   if (runnerStage) {
     runnerStage.style.backgroundColor = 'transparent';
   }
@@ -316,24 +294,26 @@ function updatePageBackground() {
 
 function queueResize() {
   resizePending = true;
+  renderedSignature = '';
 }
 
 function tick() {
   if (resizePending) {
-    resizeCanvas();
+    resizePending = false;
+    renderedSignature = '';
   }
 
   if (ready) {
     advancePosition();
-    renderFrame(position);
+    renderRunner(position);
   }
 
   requestAnimationFrame(tick);
 }
 
-if (!canvas || !ctx) {
+if (!runnerFrame) {
   if (loading) {
-    loading.textContent = 'Canvas non disponibile';
+    loading.textContent = 'Runner non disponibile';
   }
 } else {
   window.addEventListener('resize', queueResize);
@@ -354,14 +334,14 @@ if (!canvas || !ctx) {
   });
 
   updatePageBackground();
+  renderRunner(0, true);
 
   preloadFrames()
     .then(() => {
       ready = true;
       document.body.classList.add('is-loaded');
       loading?.classList.add('is-hidden');
-      resizeCanvas();
-      renderFrame(0);
+      renderRunner(0, true);
     })
     .catch((error) => {
       document.body.classList.add('runner-error');
