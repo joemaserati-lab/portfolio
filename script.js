@@ -1,4 +1,5 @@
 const CONFIG = {
+  debug: true,
   frameCount: 20,
   framePath: (index) => `assets-webp/frame-${String(index).padStart(2, '0')}.webp?v=webp-85`,
   fit: 'cover',
@@ -38,6 +39,14 @@ let lastScrollY = window.scrollY || 0;
 let touchActive = false;
 let lastTouchX = 0;
 let lastTouchY = 0;
+let renderLogCount = 0;
+let inputLogCount = 0;
+
+function debugLog(label, data = {}) {
+  if (!CONFIG.debug) return;
+
+  console.log(`[runner] ${label}`, data);
+}
 
 function getViewportSize() {
   const visualViewport = window.visualViewport;
@@ -57,6 +66,13 @@ function preloadFrames() {
         img.onload = () => {
           frames[index] = img;
           loadedFrames += 1;
+          debugLog('frame loaded', {
+            index,
+            src: img.src,
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight,
+            loadedFrames,
+          });
 
           if (loading) {
             loading.textContent = `Loading sequence ${loadedFrames}/${CONFIG.frameCount}`;
@@ -69,7 +85,10 @@ function preloadFrames() {
 
           resolve(img);
         };
-        img.onerror = () => reject(new Error(`Frame non caricato: ${CONFIG.framePath(index)}`));
+        img.onerror = () => {
+          debugLog('frame error', { index, src: CONFIG.framePath(index) });
+          reject(new Error(`Frame non caricato: ${CONFIG.framePath(index)}`));
+        };
         img.src = CONFIG.framePath(index);
       });
     })
@@ -182,11 +201,21 @@ function getLoopedIndex(index) {
 }
 
 function renderRunner(rawPosition, force = false) {
-  if (!runnerFrame || frames.length === 0) return;
+  if (!runnerFrame || frames.length === 0) {
+    debugLog('render skipped', {
+      reason: !runnerFrame ? 'missing runnerFrame' : 'no frames loaded',
+      frameArrayLength: frames.length,
+      loadedFrames,
+    });
+    return;
+  }
 
   const frameIndex = getLoopedIndex(Math.floor(rawPosition));
   const img = frames[frameIndex] || frames[0];
-  if (!img) return;
+  if (!img) {
+    debugLog('render skipped', { reason: 'missing img', frameIndex, hasFrameZero: !!frames[0] });
+    return;
+  }
 
   const viewport = getViewportSize();
   const compactProgress = getHeroCompactProgress();
@@ -205,6 +234,35 @@ function renderRunner(rawPosition, force = false) {
   runnerFrame.style.width = `${rect.w.toFixed(2)}px`;
   runnerFrame.style.height = `${rect.h.toFixed(2)}px`;
   document.body.classList.add('runner-ready');
+
+  if (renderLogCount < 40 || force) {
+    renderLogCount += 1;
+    debugLog('render applied', {
+      rawPosition,
+      frameIndex,
+      currentFrameIndex,
+      src: runnerFrame.src,
+      compactProgress,
+      viewport,
+      image: {
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight,
+      },
+      rect,
+      styles: {
+        left: runnerFrame.style.left,
+        top: runnerFrame.style.top,
+        width: runnerFrame.style.width,
+        height: runnerFrame.style.height,
+      },
+      computed: {
+        stageOpacity: runnerStage ? getComputedStyle(runnerStage).opacity : null,
+        frameDisplay: getComputedStyle(runnerFrame).display,
+        frameVisibility: getComputedStyle(runnerFrame).visibility,
+        frameRect: runnerFrame.getBoundingClientRect(),
+      },
+    });
+  }
 
   renderedSignature = signature;
 }
@@ -235,7 +293,13 @@ function normalizeWheelDelta(event) {
 }
 
 function advanceFromWheel(event) {
-  addImpulse(normalizeWheelDelta(event) * CONFIG.wheelSensitivity);
+  const normalizedDelta = normalizeWheelDelta(event);
+  addImpulse(normalizedDelta * CONFIG.wheelSensitivity);
+
+  if (inputLogCount < 20) {
+    inputLogCount += 1;
+    debugLog('wheel input', { normalizedDelta, pendingImpulse, velocity, position });
+  }
 }
 
 function advanceFromKeyboard(event) {
@@ -252,6 +316,11 @@ function advanceFromScroll() {
 
   addImpulse(clamp(delta, 0, CONFIG.maxWheelDelta) * CONFIG.scrollSensitivity);
   renderedSignature = '';
+
+  if (inputLogCount < 20) {
+    inputLogCount += 1;
+    debugLog('scroll input', { scrollY: currentScrollY, delta, pendingImpulse, velocity, position });
+  }
 }
 
 function advanceFromTouchStart(event) {
@@ -316,6 +385,15 @@ if (!runnerFrame) {
     loading.textContent = 'Runner non disponibile';
   }
 } else {
+  debugLog('init', {
+    runnerFrame: !!runnerFrame,
+    runnerStage: !!runnerStage,
+    runnerSlot: !!runnerSlot,
+    href: window.location.href,
+    initialSrc: runnerFrame.src,
+    initialRect: runnerFrame.getBoundingClientRect(),
+  });
+
   window.addEventListener('resize', queueResize);
   window.addEventListener('orientationchange', queueResize);
   window.visualViewport?.addEventListener('resize', queueResize);
