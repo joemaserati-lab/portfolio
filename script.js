@@ -9,8 +9,11 @@ const CONFIG = {
   backgroundColor: '#0000ff',
   wheelSensitivity: 0.0022,
   touchSensitivity: 0.008,
+  mobileTouchSensitivity: 0.014,
+  minTouchImpulse: 0.018,
   keyboardImpulse: 0.34,
   scrollSensitivity: 0.002,
+  mobileScrollSensitivity: 0.004,
   inputSmoothing: 0.24,
   inertia: 0.78,
   maxVelocity: 0.13,
@@ -19,6 +22,8 @@ const CONFIG = {
   maxTouchDelta: 120,
   compactStart: 0.72,
   compactEnd: 1.12,
+  mobileCompactStart: 0.95,
+  mobileCompactEnd: 1.35,
   compactIconHeight: 96,
   compactVisibleBounds: { x: 768, y: 104, w: 484, h: 932 },
 };
@@ -63,7 +68,11 @@ function getViewportSize() {
 }
 
 function getSourceName() {
-  return getViewportSize().width <= CONFIG.mobileBreakpoint ? 'mobile' : 'desktop';
+  return isMobileViewport() ? 'mobile' : 'desktop';
+}
+
+function isMobileViewport() {
+  return getViewportSize().width <= CONFIG.mobileBreakpoint;
 }
 
 function getFramePath(index, source = getSourceName()) {
@@ -155,8 +164,10 @@ function easeInOut(value) {
 
 function getHeroCompactProgress() {
   const viewport = getViewportSize();
-  const start = viewport.height * CONFIG.compactStart;
-  const end = viewport.height * CONFIG.compactEnd;
+  const startRatio = isMobileViewport() ? CONFIG.mobileCompactStart : CONFIG.compactStart;
+  const endRatio = isMobileViewport() ? CONFIG.mobileCompactEnd : CONFIG.compactEnd;
+  const start = viewport.height * startRatio;
+  const end = viewport.height * endRatio;
 
   if (end <= start) return 1;
 
@@ -168,6 +179,18 @@ function getBaseDrawRect(img) {
   const imageRatio = img.naturalWidth / img.naturalHeight;
   const viewportRatio = viewportW / viewportH;
   const fit = viewportW <= CONFIG.mobileBreakpoint ? CONFIG.mobileFit : CONFIG.fit;
+
+  if (isMobileViewport()) {
+    const drawH = viewportH;
+    const drawW = viewportH * imageRatio;
+
+    return {
+      x: (viewportW - drawW) / 2,
+      y: 0,
+      w: drawW,
+      h: drawH,
+    };
+  }
 
   let drawW;
   let drawH;
@@ -364,8 +387,9 @@ function advanceFromScroll() {
   const currentScrollY = window.scrollY || 0;
   const delta = Math.abs(currentScrollY - lastScrollY);
   lastScrollY = currentScrollY;
+  const sensitivity = isMobileViewport() ? CONFIG.mobileScrollSensitivity : CONFIG.scrollSensitivity;
 
-  addImpulse(clamp(delta, 0, CONFIG.maxWheelDelta) * CONFIG.scrollSensitivity);
+  addImpulse(clamp(delta, 0, CONFIG.maxWheelDelta) * sensitivity);
   renderedSignature = '';
 
   if (inputLogCount < 20) {
@@ -392,11 +416,12 @@ function advanceFromTouchMove(event) {
   const deltaX = Math.abs(touch.clientX - lastTouchX);
   const deltaY = Math.abs(touch.clientY - lastTouchY);
   const normalizedDelta = clamp(deltaX + deltaY, 0, CONFIG.maxTouchDelta);
+  const sensitivity = isMobileViewport() ? CONFIG.mobileTouchSensitivity : CONFIG.touchSensitivity;
 
   lastTouchX = touch.clientX;
   lastTouchY = touch.clientY;
 
-  addImpulse(normalizedDelta * CONFIG.touchSensitivity);
+  addImpulse(Math.max(normalizedDelta * sensitivity, CONFIG.minTouchImpulse));
 }
 
 function advanceFromTouchEnd() {
