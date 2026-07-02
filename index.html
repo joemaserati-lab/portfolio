@@ -3,85 +3,184 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Scroll Runner Loop</title>
-  <link rel="stylesheet" href="styles.css?v=viewport-1" />
+  <meta name="description" content="Portfolio di Edoardo Rappanello, digital designer specializzato in interfacce motion-led, sistemi visivi e web experience responsive." />
+  <title>Edoardo Rappanello - Digital Design Portfolio</title>
+  <link rel="stylesheet" href="styles.css?v=portfolio-2" />
 </head>
 <body>
-  <main class="stage" aria-label="Animazione uomo in corsa controllata dallo scroll">
-    <canvas id="runnerCanvas"></canvas>
-    <svg class="hero-type-top" viewBox="0 0 1000 220" preserveAspectRatio="none" aria-hidden="true">
-      <text x="0" y="185" textLength="1000" lengthAdjust="spacingAndGlyphs">PORTFOLIO</text>
-    </svg>
-    <div class="hero-type hero-type-bottom hero-type-bottom-left">EDOARDO</div>
-    <div class="hero-type hero-type-bottom hero-type-bottom-right">RAPPANELLO</div>
-    <div class="loading" id="loading">Loading sequence</div>
-  </main>
+  <a class="skip-link" href="#work">Salta ai progetti</a>
 
-  <section class="final-content" id="finalContent" aria-label="Portfolio di Edoardo Rappanello" aria-hidden="true">
-    <div class="final-content-inner">
-      <section class="content-panel portfolio-intro" aria-labelledby="portfolioTitle" aria-hidden="true">
-        <p class="final-kicker">Selected Works</p>
-        <h1 id="portfolioTitle">Digital work with motion, rhythm and intent.</h1>
-        <p class="intro-copy">Portfolio personale di Edoardo Rappanello: interfacce, identita visive e sistemi digitali costruiti con una direzione chiara.</p>
-      </section>
+  <header class="site-header" aria-label="Navigazione principale">
+    <a class="brand" href="#top" aria-label="Edoardo Rappanello home">ER</a>
+    <nav class="site-nav" aria-label="Sezioni portfolio">
+      <a href="#work">Work</a>
+      <a href="#about">About</a>
+      <a href="#process">Process</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
 
-      <section class="content-panel works-panel" aria-label="Progetti selezionati" aria-hidden="true">
-        <div class="panel-heading">
-          <p class="final-kicker">Selected Works</p>
-          <p>Tre direzioni progettuali per esperienze digitali veloci, leggibili e memorabili.</p>
+  <main id="top">
+    <section class="hero" aria-labelledby="heroTitle">
+      <canvas id="runnerCanvas" aria-hidden="true"></canvas>
+      <div class="hero-type hero-type-top" aria-hidden="true">PORTFOLIO</div>
+      <div class="hero-type hero-type-bottom hero-type-bottom-left" aria-hidden="true">EDOARDO</div>
+      <div class="hero-type hero-type-bottom hero-type-bottom-right" aria-hidden="true">RAPPANELLO</div>
+
+      <div class="hero-content">
+        <p class="eyebrow">Digital Designer / Creative Developer</p>
+        <h1 id="heroTitle">Motion-led interfaces, visual systems and responsive web experiences.</h1>
+        <p class="hero-copy">Creo direzioni digitali dove ritmo, tipografia e interazione aiutano brand e prodotti a comunicare con chiarezza.</p>
+        <div class="hero-actions" aria-label="Azioni principali">
+          <a class="button button-primary" href="#work">View selected work</a>
+          <a class="button button-secondary" href="#contact">Start a project</a>
         </div>
-        <div class="works-grid">
-          <article class="work-card">
-            <div class="work-meta">
-              <span>01</span>
-              <span>2026</span>
-            </div>
-            <h2>Running Man System</h2>
-            <p>Esperienza web controllata dallo scroll, con sequenza canvas e tipografia editoriale a pieno viewport.</p>
-          </article>
+      </div>
 
-          <article class="work-card">
-            <div class="work-meta">
-              <span>02</span>
-              <span>Identity</span>
-            </div>
-            <h2>Visual Pace</h2>
-            <p>Direzione visiva per brand digitali: layout, ritmo tipografico e componenti essenziali per landing e portfolio.</p>
-          </article>
+      <p class="loading" id="loading" aria-live="polite">Loading sequence</p>
+    </section>
 
-          <article class="work-card">
-            <div class="work-meta">
-              <span>03</span>
-              <span>Interface</span>
-            </div>
-            <h2>Editorial Web</h2>
-            <p>Sistemi responsive per contenuti, casi studio e pagine di presentazione con forte gerarchia visiva.</p>
-          </article>
+    <section class="section intro-section" aria-label="Sintesi portfolio">
+      <div class="section-kicker">Positioning</div>
+      <div class="intro-grid">
+        <p class="statement">Un portfolio costruito per mostrare gusto visivo, metodo e output concreti: dal concept alla gerarchia, fino alla resa responsive.</p>
+        <div class="proof-list" aria-label="Competenze sintetiche">
+          <span>Interface design</span>
+          <span>Visual identity systems</span>
+          <span>Motion direction</span>
+          <span>Responsive web</span>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="content-panel contact-section" id="contact" aria-labelledby="contactTitle" aria-hidden="true">
-        <p class="final-kicker">Contact</p>
-        <h2 id="contactTitle">Let us build something with pace.</h2>
+    <section class="section work-section" id="work" aria-labelledby="workTitle">
+      <div class="section-heading">
+        <p class="section-kicker">Selected Works</p>
+        <h2 id="workTitle">Case studies in progress, built around role, scope and outcome.</h2>
+      </div>
+
+      <div class="works-grid">
+        <article class="work-card">
+          <div class="work-card-top">
+            <span>01</span>
+            <span>Web Experience</span>
+          </div>
+          <div class="work-preview" aria-hidden="true">RUN</div>
+          <h3>Running Man System</h3>
+          <p>Interfaccia portfolio basata su canvas, sequenza frame-by-frame e transizione verso contenuti editoriali.</p>
+          <dl class="work-details">
+            <div><dt>Role</dt><dd>Creative direction, UI, front-end</dd></div>
+            <div><dt>Scope</dt><dd>Hero motion, responsive layout, interaction model</dd></div>
+            <div><dt>Outcome</dt><dd>Identita memorabile con navigazione ora accessibile</dd></div>
+          </dl>
+          <a href="#contact" class="text-link">Discuss a similar experience</a>
+        </article>
+
+        <article class="work-card work-card-muted">
+          <div class="work-card-top">
+            <span>02</span>
+            <span>Identity System</span>
+          </div>
+          <div class="work-preview" aria-hidden="true">VIS</div>
+          <h3>Visual Pace</h3>
+          <p>Sistema visivo per landing e portfolio digitali: griglie, ritmo tipografico e componenti essenziali.</p>
+          <dl class="work-details">
+            <div><dt>Role</dt><dd>Visual design, art direction</dd></div>
+            <div><dt>Scope</dt><dd>Typography, surfaces, card system</dd></div>
+            <div><dt>Outcome</dt><dd>Direzione coerente e scalabile per pagine veloci</dd></div>
+          </dl>
+          <a href="#process" class="text-link">See the process</a>
+        </article>
+
+        <article class="work-card">
+          <div class="work-card-top">
+            <span>03</span>
+            <span>Editorial Interface</span>
+          </div>
+          <div class="work-preview" aria-hidden="true">WEB</div>
+          <h3>Editorial Web</h3>
+          <p>Layout responsive per contenuti, casi studio e pagine di presentazione con gerarchia visiva marcata.</p>
+          <dl class="work-details">
+            <div><dt>Role</dt><dd>UX structure, UI system</dd></div>
+            <div><dt>Scope</dt><dd>Content hierarchy, cards, contact flow</dd></div>
+            <div><dt>Outcome</dt><dd>Esperienza piu chiara per recruiter e clienti</dd></div>
+          </dl>
+          <a href="#contact" class="text-link">Plan a case study</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="section about-section" id="about" aria-labelledby="aboutTitle">
+      <p class="section-kicker">About</p>
+      <div class="split-layout">
+        <h2 id="aboutTitle">Design digitale con una direzione visiva riconoscibile e una struttura leggibile.</h2>
+        <div class="body-copy">
+          <p>Sono Edoardo Rappanello. Lavoro su interfacce, identita e pagine web dove l'impatto iniziale deve trasformarsi in comprensione, fiducia e conversione.</p>
+          <p>Il mio focus e bilanciare personalita e chiarezza: un sito deve farsi ricordare, ma deve anche spiegare ruolo, processo e valore senza costringere l'utente a indovinare.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section process-section" id="process" aria-labelledby="processTitle">
+      <div class="section-heading">
+        <p class="section-kicker">Process</p>
+        <h2 id="processTitle">Dal concept al sistema.</h2>
+      </div>
+      <div class="process-grid">
+        <article>
+          <span>01</span>
+          <h3>Positioning</h3>
+          <p>Definizione di tono, pubblico, obiettivo e messaggio principale prima della direzione visuale.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h3>Structure</h3>
+          <p>Gerarchia dei contenuti, flussi di lettura, CTA e sezioni necessarie per sostenere la conversione.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h3>Visual System</h3>
+          <p>Tipografia, superfici, card, ritmo, motion e regole responsive per rendere il design consistente.</p>
+        </article>
+        <article>
+          <span>04</span>
+          <h3>Delivery</h3>
+          <p>Prototipo o front-end statico con attenzione a performance percepita, accessibilita e mobile.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section capabilities-section" aria-labelledby="capabilitiesTitle">
+      <p class="section-kicker">Capabilities</p>
+      <h2 id="capabilitiesTitle">Interfacce, identita e sistemi web con ritmo.</h2>
+      <ul class="capability-list">
+        <li><span>UI direction</span><small>Landing, portfolio, product pages</small></li>
+        <li><span>Motion concepts</span><small>Hero sequences, transitions, microinteractions</small></li>
+        <li><span>Design systems</span><small>Type scale, cards, grids, responsive rules</small></li>
+        <li><span>Front-end prototypes</span><small>HTML, CSS, JavaScript, canvas experiments</small></li>
+      </ul>
+    </section>
+
+    <section class="section contact-section" id="contact" aria-labelledby="contactTitle">
+      <p class="section-kicker">Contact</p>
+      <h2 id="contactTitle">Hai un progetto digitale che deve muoversi con piu chiarezza?</h2>
+      <div class="contact-row">
+        <p>Scrivimi per portfolio, landing, identita digitali o prototipi interattivi.</p>
         <div class="contact-links" aria-label="Contatti e link">
           <a href="mailto:hello@edoardo.dev">hello@edoardo.dev</a>
           <a href="https://www.linkedin.com/" target="_blank" rel="noreferrer">LinkedIn</a>
           <a href="https://www.instagram.com/" target="_blank" rel="noreferrer">Instagram</a>
         </div>
-      </section>
+      </div>
+    </section>
+  </main>
 
-      <section class="content-panel closing-panel" aria-label="Footer" aria-hidden="true">
-        <p class="final-kicker">End</p>
-        <h2>Edoardo Rappanello</h2>
-        <footer class="site-footer">
-          <span>Portfolio 2026</span>
-          <a href="mailto:hello@edoardo.dev">Mail</a>
-          <span>Scroll keeps the runner moving</span>
-        </footer>
-      </section>
-    </div>
-  </section>
+  <footer class="site-footer">
+    <span>Edoardo Rappanello</span>
+    <span>Portfolio 2026</span>
+    <a href="#top">Back to top</a>
+  </footer>
 
-  <script src="script.js?v=viewport-1"></script>
+  <script src="script.js?v=portfolio-2"></script>
 </body>
 </html>

@@ -1,16 +1,15 @@
-# Scroll Runner Loop
+# Edoardo Rappanello Portfolio
 
-Pagina web desktop con sequenza di immagini controllata dallo scroll.
+Portfolio personale con hero canvas, sequenza runner e contenuti navigabili con scroll nativo.
 
 ## Logica implementata
 
-- La pagina è full viewport e non genera scroll verticale reale.
-- Il wheel del mouse o trackpad controlla la sequenza.
-- La direzione dello scroll viene ignorata: scroll giù e scroll su mandano sempre avanti l'animazione.
-- La sequenza è in loop continuo sui 20 frame.
-- Il rendering usa canvas per ridurre flicker e gestire meglio il resize desktop.
-- La versione aggiornata usa inerzia continua e un limite massimo di velocità per evitare accelerazioni eccessive.
-- I frame caricati dal sito sono WebP quality 85 con canale alfa, generati dai PNG originali per ridurre il peso iniziale.
+- La hero mantiene la sequenza di immagini WebP renderizzata su canvas.
+- La pagina usa scroll verticale reale e sezioni HTML accessibili.
+- La navigazione principale collega Work, About, Process e Contact.
+- Il runner si anima in modo leggero in background senza intercettare wheel, touch o tastiera.
+- Le preferenze `prefers-reduced-motion` fermano l'avanzamento automatico della sequenza.
+- I contenuti portfolio includono posizionamento, mini case study, processo, capability e CTA.
 
 ## Avvio
 
@@ -20,10 +19,7 @@ Apri `index.html` in browser.
 
 Nel file `script.js` puoi modificare:
 
-- `wheelSensitivity`: velocità di avanzamento della sequenza.
-- `inertia`: durata dell'inerzia dopo lo scroll.
-- `inputSmoothing`: morbidezza con cui gli input vengono applicati alla sequenza.
-- `frameInterpolation`: blending tra frame consecutivi, attualmente disattivato.
-- `maxVelocity`: limite massimo di velocità; abbassalo ulteriormente se vuoi una corsa ancora più lenta.
-- `maxPendingImpulse`: limite massimo dell'input accumulato durante scroll ripetuti.
+- `playbackSpeed`: velocita dell'animazione canvas.
 - `fit`: `cover` per riempire il viewport, `contain` per mantenere tutto visibile.
+- `maxDevicePixelRatio`: limite del DPR usato per il rendering canvas.
+- `framePath`: percorso dei frame WebP.
