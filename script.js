@@ -3,6 +3,8 @@ const CONFIG = {
   frameCount: 20,
   framePath: (index) => `assets-webp/frame-${String(index).padStart(2, '0')}.webp?v=webp-85`,
   fit: 'cover',
+  mobileFit: 'contain',
+  mobileBreakpoint: 760,
   backgroundColor: '#0000ff',
   wheelSensitivity: 0.0022,
   touchSensitivity: 0.008,
@@ -118,11 +120,12 @@ function getBaseDrawRect(img) {
   const { width: viewportW, height: viewportH } = getViewportSize();
   const imageRatio = img.naturalWidth / img.naturalHeight;
   const viewportRatio = viewportW / viewportH;
+  const fit = viewportW <= CONFIG.mobileBreakpoint ? CONFIG.mobileFit : CONFIG.fit;
 
   let drawW;
   let drawH;
 
-  if (CONFIG.fit === 'contain') {
+  if (fit === 'contain') {
     if (imageRatio > viewportRatio) {
       drawW = viewportW;
       drawH = viewportW / imageRatio;

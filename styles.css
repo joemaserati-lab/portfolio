@@ -141,7 +141,7 @@ a:focus-visible {
 .runner-stage {
   position: fixed;
   inset: 0;
-  z-index: 26;
+  z-index: 14;
   width: 100vw;
   height: 100vh;
   pointer-events: none;
@@ -333,6 +333,8 @@ body.runner-compact .hero-type {
 }
 
 .section {
+  position: relative;
+  z-index: 20;
   width: min(var(--max-width), calc(100% - (var(--space-page) * 2)));
   margin: 0 auto;
   padding: var(--space-section) 0;
